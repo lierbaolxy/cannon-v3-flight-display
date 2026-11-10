@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>Juma Cannon v3.0 — STM32F401RET6 功能级原理图（实测重建）</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin:0; padding:16px; background:#e8ebee;
+         font-family:"Segoe UI","Microsoft YaHei","PingFang SC",sans-serif; color:#111827; }
+  .page { width:1600px; margin:0 auto; background:#fff; box-shadow:0 2px 18px rgba(0,0,0,.18); }
+  svg { display:block; width:100%; height:auto; }
+  .card   { fill:#ffffff; stroke:#26323d; stroke-width:1.4; }
+  .sub    { fill:#fbfcfd; stroke:#94a3b8; stroke-width:1.2; stroke-dasharray:5 4; }
+  .ttl    { font-size:17px; font-weight:700; fill:#0f172a; }
+  .ttl2   { font-size:13.5px; font-weight:700; fill:#0f172a; }
+  .pin    { font-family:Consolas,"Courier New",monospace; font-size:13.5px; font-weight:700; fill:#111827; }
+  .fn     { font-family:Consolas,"Courier New",monospace; font-size:11px; fill:#64748b; }
+  .note   { font-size:12.5px; fill:#334155; }
+  .small  { font-size:11px; fill:#475569; }
+  .mono   { font-family:Consolas,"Courier New",monospace; font-size:11.5px; fill:#1f2937; }
+  .tagtx  { font-family:Consolas,"Courier New",monospace; font-size:11px; font-weight:700; }
+  .warn   { fill:#b91c1c; font-size:11.5px; font-weight:700; }
+  .ok     { fill:#047857; font-size:11.5px; font-weight:700; }
+  .inf    { fill:#b45309; font-size:11px; }
+  .unk    { fill:#6b7280; font-size:11px; }
+  .stmt   { stroke:#1f2937; stroke-width:1.3; fill:none; }
+  .bustx  { stroke:#7c3aed; stroke-width:4; stroke-linecap:round; }
+</style>
+</head>
+<body>
+<div class="page">
+<svg viewBox="0 0 1600 1280" xmlns="http://www.w3.org/2000/svg">
+
+  <!-- ================= 图框 ================= -->
+  <rect x="0" y="0" width="1600" height="1280" fill="#ffffff"/>
+  <rect x="16" y="14" width="1568" height="1252" fill="none" stroke="#26323d" stroke-width="2"/>
+  <rect x="24" y="16" width="1552" height="84" rx="5" fill="#f8fafc" stroke="#26323d" stroke-width="1.2"/>
+
+  <text x="44" y="52" font-size="26" font-weight="700" fill="#0f172a">JUMA CANNON v3.0 · STM32F401RET6 功能级原理图</text>
+  <text x="44" y="80" font-size="13" fill="#475569">依据 SWD / 串口 / I2C 实测行为反推重建 · 非原厂图纸 · 禁止作为改板或量产依据</text>
+
+  <rect x="1120" y="42" width="13" height="13" rx="2" fill="#059669"/>
+  <text x="1140" y="53" font-size="11.5" fill="#334155">实测确认</text>
+  <rect x="1205" y="42" width="13" height="13" rx="2" fill="#f59e0b"/>
+  <text x="1225" y="53" font-size="11.5" fill="#334155">典型推断</text>
+  <rect x="1290" y="42" width="13" height="13" rx="2" fill="none" stroke="#6b7280" stroke-dasharray="3 2"/>
+  <text x="1310" y="53" font-size="11.5" fill="#334155">未知待测</text>
+  <text x="1120" y="80" font-size="11.5" fill="#64748b">Rev.A · 2026-11-09 · 网络标号同名即相连</text>
+
+  <!-- ================= ① 电源 ================= -->
+  <rect class="card" x="30" y="112" width="400" height="340" rx="5"/>
+  <text class="ttl" x="48" y="146">① 电源域　5V → 3.3V</text>
+
+  <!-- J1 Micro-USB -->
+  <rect x="50" y="166" width="48" height="82" rx="3" fill="#eef2f7" stroke="#334155" stroke-width="1.2"/>
+  <line class="stmt" x1="98" y1="178" x2="112" y2="178"/>
+  <line class="stmt" x1="98" y1="196" x2="112" y2="196"/>
+  <line class="stmt" x1="98" y1="212" x2="112" y2="212"/>
+  <line class="stmt" x1="98" y1="228" x2="112" y2="228"/>
+  <line class="stmt" x1="98" y1="244" x2="112" y2="244"/>
+  <text class="mono" x="118" y="182">VBUS 5V</text>
+  <text class="mono" x="118" y="200">D−</text>
+  <text class="mono" x="118" y="216">D+</text>
+  <text class="mono" x="118" y="232">GND</text>
+  <text class="mono" x="118" y="248">ID</text>
+  <text class="small" x="50" y="268">J1 Micro-USB</text>
+
+  <!-- J2 -->
+  <rect x="50" y="288" width="48" height="40" rx="3" fill="#eef2f7" stroke="#334155" stroke-width="1.2"/>
+  <text class="mono" x="112" y="304">J2 5V 座</text>
+  <text class="unk" x="112" y="322">（存在性待确认）</text>
+
+  <!-- 5V 母线 -->
+  <polyline class="stmt" points="112,182 230,182 230,214 268,214" stroke="#c2410c"/>
+  <polyline class="stmt" points="112,306 214,306 214,214" stroke="#c2410c"/>
+  <circle cx="230" cy="214" r="3.5" fill="#c2410c"/>
+  <text x="196" y="176" font-size="10" font-weight="700" fill="#c2410c">5V_IN</text>
+
+  <!-- 警告框 -->
+  <rect x="50" y="348" width="204" height="58" rx="4" fill="#fef2f2" stroke="#dc2626" stroke-width="1.2"/>
+  <text class="warn" x="62" y="370">⚠ 5V 座与 Micro-USB</text>
+  <text class="warn" x="62" y="390">禁止同时接入（回流风险）</text>
+
+  <!-- LDO -->
+  <rect x="268" y="168" width="140" height="90" rx="4" fill="#ffffff" stroke="#0f766e" stroke-width="1.6"/>
+  <text x="280" y="192" font-size="12.5" font-weight="700" fill="#0f766e">U1　3.3V LDO</text>
+  <text class="inf" x="280" y="212">型号 / 封装 待测</text>
+  <text class="mono" x="280" y="232">IN 5V → OUT 3.3V</text>
+  <text class="small" x="280" y="250">输出能力待核实</text>
+
+  <text class="small" x="50" y="432">C1 10µF/10V(5V) · C2 0.1µF · C3 10µF(3V3)　容值推断</text>
+
+  <!-- 3V3 出线标签 -->
+  <line class="stmt" x1="318" y1="258" x2="318" y2="270" stroke="#0f766e"/>
+  <rect x="300" y="270" width="36" height="20" rx="4" fill="#ecfdf5" stroke="#0f766e"/>
+  <text class="tagtx" x="306" y="284" fill="#0f766e">3V3</text>
+  <text x="342" y="285" font-size="10" fill="#334155">→ VDD / VDDA</text>
+
+  <!-- ================= ② SWD ================= -->
+  <rect class="card" x="30" y="470" width="400" height="200" rx="5"/>
+  <text class="ttl" x="48" y="502">② SWD 调试口（丝印 G D C V）</text>
+
+  <rect x="56" y="518" width="34" height="24" rx="3" fill="#e0f2fe" stroke="#0369a1" stroke-width="1.2"/>
+  <text class="pin" x="71" y="535" text-anchor="middle">G</text>
+  <line class="stmt" x1="90" y1="530" x2="118" y2="530" stroke="#0369a1"/>
+  <text class="mono" x="124" y="534">GND</text>
+
+  <rect x="56" y="550" width="34" height="24" rx="3" fill="#e0f2fe" stroke="#0369a1" stroke-width="1.2"/>
+  <text class="pin" x="71" y="567" text-anchor="middle">D</text>
+  <line class="stmt" x1="90" y1="562" x2="118" y2="562" stroke="#0369a1"/>
+  <text class="mono" x="124" y="566">SWDIO → PA13</text>
+
+  <rect x="56" y="582" width="34" height="24" rx="3" fill="#e0f2fe" stroke="#0369a1" stroke-width="1.2"/>
+  <text class="pin" x="71" y="599" text-anchor="middle">C</text>
+  <line class="stmt" x1="90" y1="594" x2="118" y2="594" stroke="#0369a1"/>
+  <text class="mono" x="124" y="598">SWCLK → PA14</text>
+
+  <rect x="56" y="614" width="34" height="24" rx="3" fill="#fee2e2" stroke="#dc2626" stroke-width="1.4"/>
+  <text class="pin" x="71" y="631" text-anchor="middle">V</text>
+  <line class="stmt" x1="90" y1="626" x2="118" y2="626" stroke="#dc2626"/>
+  <text class="mono" x="124" y="630">3.3V（板载，仅参考）</text>
+
+  <rect x="236" y="514" width="180" height="134" rx="4" fill="#fef2f2" stroke="#dc2626" stroke-width="1.3"/>
+  <text class="warn" x="246" y="538">⚠ 严禁 V ↔ 3.3V</text>
+  <text class="warn" x="246" y="560">倒灌电流已烧毁</text>
+  <text class="warn" x="246" y="580">1 只 DAPLink</text>
+  <text class="ok" x="246" y="610">只接 G / D / C</text>
+  <text class="small" x="246" y="630">三根线即可通信</text>
+
+  <!-- ================= ③ USART1 ================= -->
+  <rect class="card" x="30" y="690" width="400" height="160" rx="5"/>
+  <text class="ttl" x="48" y="722">③ USART1 引出（PA9 / PA10）</text>
+  <text class="mono" x="48" y="754">TX = PA9 · RX = PA10 · 115200 8N1</text>
+  <text class="note" x="48" y="780">实测：外接 USB-TTL 经此口完成 ISP 烧录 + 心跳输出</text>
+  <text class="note" x="48" y="804">接线：TX→RX 交叉 · 共地 · 3.3V TTL 电平</text>
+  <text class="warn" x="48" y="830">禁止 TX 与 MCU 的 TX 对顶（会损伤引脚）</text>
+
+  <!-- ================= ④ MCU ================= -->
+  <rect class="card" x="540" y="112" width="470" height="700" rx="5"/>
+  <text class="ttl" x="560" y="146">④ MCU　STM32F401RET6　LQFP64</text>
+
+  <!-- 左侧引脚 -->
+  <line class="stmt" x1="524" y1="200" x2="540" y2="200"/>
+  <text class="pin" x="556" y="205">VDD / VDDA</text>
+  <text class="fn" x="556" y="220">3.3V 数字 / 模拟电源</text>
+
+  <line class="stmt" x1="524" y1="232" x2="540" y2="232"/>
+  <text class="pin" x="556" y="237">VSS / VSSA</text>
+  <text class="fn" x="556" y="252">GND</text>
+
+  <line class="stmt" x1="524" y1="290" x2="540" y2="290"/>
+  <text class="pin" x="556" y="295">BOOT0</text>
+  <text class="fn" x="556" y="310">板上已上拉 → 悬空即停在 bootloader</text>
+
+  <line class="stmt" x1="524" y1="322" x2="540" y2="322"/>
+  <text class="pin" x="556" y="327">BOOT1 / PB2</text>
+  <text class="fn" x="556" y="342">需接地（ROM ISP 条件）</text>
+
+  <line class="stmt" x1="524" y1="364" x2="540" y2="364"/>
+  <text class="pin" x="556" y="369">NRST</text>
+  <text class="fn" x="556" y="384">复位（电路待测）</text>
+
+  <line class="stmt" x1="524" y1="406" x2="540" y2="406"/>
+  <text class="pin" x="556" y="411">PA13</text>
+  <text class="fn" x="556" y="426">SWDIO</text>
+
+  <line class="stmt" x1="524" y1="438" x2="540" y2="438"/>
+  <text class="pin" x="556" y="443">PA14</text>
+  <text class="fn" x="556" y="458">SWCLK</text>
+
+  <line class="stmt" x1="524" y1="510" x2="540" y2="510"/>
+  <text class="pin" x="556" y="515">PA9</text>
+  <text class="fn" x="556" y="530">USART1_TX</text>
+
+  <line class="stmt" x1="524" y1="542" x2="540" y2="542"/>
+  <text class="pin" x="556" y="547">PA10</text>
+  <text class="fn" x="556" y="562">USART1_RX</text>
+
+  <!-- 右侧引脚 -->
+  <line class="stmt" x1="1010" y1="200" x2="1026" y2="200"/>
+  <text class="pin" x="994" y="205" text-anchor="end">PA2</text>
+  <text class="fn" x="994" y="220" text-anchor="end">USART2_TX</text>
+
+  <line class="stmt" x1="1010" y1="232" x2="1026" y2="232"/>
+  <text class="pin" x="994" y="237" text-anchor="end">PA3</text>
+  <text class="fn" x="994" y="252" text-anchor="end">USART2_RX</text>
+
+  <line class="stmt" x1="1010" y1="470" x2="1026" y2="470"/>
+  <text class="pin" x="994" y="475" text-anchor="end">PB6</text>
+  <text class="fn" x="994" y="490" text-anchor="end">I2C1_SCL</text>
+
+  <line class="stmt" x1="1010" y1="502" x2="1026" y2="502"/>
+  <text class="pin" x="994" y="507" text-anchor="end">PB7</text>
+  <text class="fn" x="994" y="522" text-anchor="end">I2C1_SDA</text>
+
+  <line class="stmt" x1="1010" y1="550" x2="1026" y2="550"/>
+  <text class="pin" x="994" y="555" text-anchor="end">LED?</text>
+  <text class="fn" x="994" y="570" text-anchor="end">引脚待测</text>
+
+  <!-- 实测要点 -->
+  <text class="ttl2" x="556" y="600">实测要点</text>
+  <text class="note" x="556" y="624">· USART2 = 115200 8N1，与原厂固件一致</text>
+  <text class="note" x="556" y="648">· BOOT0 悬空 → 芯片停留 bootloader，无用户程序</text>
+  <text class="note" x="556" y="672">· I2C1 总线上无 0x6A 器件（LSM6DSL 不存在）</text>
+
+  <!-- 时钟 -->
+  <rect class="sub" x="556" y="686" width="440" height="112" rx="4"/>
+  <text class="mono" x="570" y="708">Y1 HSE 晶振：频率 / 负载电容 待测</text>
+  <text class="mono" x="570" y="730">PH0 = OSC_IN · PH1 = OSC_OUT</text>
+  <text class="small" x="570" y="752">实测推算 SYSCLK = 84MHz、APB1 = 42MHz（由 USART2 BRR 反推）</text>
+  <text class="small" x="570" y="774">故 HSE 应为 8MHz + PLL 倍频（推断，待示波器确认）</text>
+
+  <!-- ================= ⑤ CH340 ================= -->
+  <rect class="card" x="1140" y="112" width="420" height="290" rx="5"/>
+  <text class="ttl" x="1160" y="146">⑤ USB-UART　CH340</text>
+
+  <rect x="1160" y="168" width="150" height="78" rx="4" fill="#ffffff" stroke="#1d4ed8" stroke-width="1.5"/>
+  <text x="1172" y="192" font-size="12.5" font-weight="700" fill="#1d4ed8">U2　CH340x</text>
+  <text class="inf" x="1172" y="212">VCC 供电电压 待测</text>
+  <text class="small" x="1172" y="232">TXD / RXD / V3</text>
+
+  <text class="mono" x="1326" y="192">TXD → PA3</text>
+  <text class="fn" x="1326" y="206">(USART2_RX)</text>
+  <text class="mono" x="1326" y="230">RXD ← PA2</text>
+  <text class="fn" x="1326" y="244">(USART2_TX)</text>
+
+  <rect x="1160" y="260" width="380" height="30" rx="3" fill="#ecfdf5" stroke="#059669" stroke-width="1.2"/>
+  <text class="ok" x="1172" y="280">实测：COM25 · 115200 · 8N1 心跳正常</text>
+
+  <text class="warn" x="1160" y="310">TX/RX 必须交叉，禁止 TX 对 TX 对顶</text>
+  <text class="inf" x="1160" y="332">若 5V 供电，需确认其 TXD 高电平是否被 MCU 承受</text>
+  <text class="unk" x="1160" y="354">USB 侧 ESD / 串阻 / 型号（CH340G/C/N）未核实</text>
+  <text class="unk" x="1160" y="376">D+ / D− 来自 J1（见 ①）</text>
+
+  <!-- ================= ⑥ 传感器 ================= -->
+  <rect class="card" x="1140" y="420" width="420" height="420" rx="5"/>
+  <text class="ttl" x="1160" y="452">⑥ I2C1 传感器组</text>
+  <text class="mono" x="1160" y="472">PB6=SCL · PB7=SDA · 3.3V · 上拉 4.7k（推断）</text>
+
+  <line class="bustx" x1="1176" y1="486" x2="1176" y2="780"/>
+
+  <line class="stmt" x1="1176" y1="523" x2="1216" y2="523" stroke="#7c3aed"/>
+  <rect x="1216" y="490" width="330" height="66" rx="4" fill="#faf5ff" stroke="#7c3aed" stroke-width="1.3"/>
+  <text x="1228" y="516" font-size="12.5" font-weight="700" fill="#4c1d95">U3　LSM6DS3</text>
+  <text class="mono" x="1228" y="538">IMU 6 轴 · addr 0x6B (SA0=1)</text>
+
+  <line class="stmt" x1="1176" y1="599" x2="1216" y2="599" stroke="#7c3aed"/>
+  <rect x="1216" y="566" width="330" height="66" rx="4" fill="#faf5ff" stroke="#7c3aed" stroke-width="1.3"/>
+  <text x="1228" y="592" font-size="12.5" font-weight="700" fill="#4c1d95">U4　LPS25H</text>
+  <text class="mono" x="1228" y="614">气压计 · addr 0x5D</text>
+
+  <line class="stmt" x1="1176" y1="675" x2="1216" y2="675" stroke="#7c3aed"/>
+  <rect x="1216" y="642" width="330" height="66" rx="4" fill="#faf5ff" stroke="#7c3aed" stroke-width="1.3"/>
+  <text x="1228" y="668" font-size="12.5" font-weight="700" fill="#4c1d95">U5　HTS221</text>
+  <text class="mono" x="1228" y="690">温湿度 · addr 0x5F</text>
+
+  <line class="stmt" x1="1176" y1="751" x2="1216" y2="751" stroke="#7c3aed"/>
+  <rect x="1216" y="718" width="330" height="66" rx="4" fill="#faf5ff" stroke="#7c3aed" stroke-width="1.3"/>
+  <text x="1228" y="744" font-size="12.5" font-weight="700" fill="#4c1d95">U6　LSM303AGR</text>
+  <text class="mono" x="1228" y="766">磁力 0x1E / 加速度 0x19</text>
+
+  <text x="1160" y="816" font-size="10.5" fill="#b91c1c">⚠ 板上无 0x6A 器件 → 原厂固件按 LSM6DSL 自检必卡死</text>
+
+  <!-- ================= 网络标签 ================= -->
+  <!-- 左侧标签 -->
+  <rect x="488" y="190" width="36" height="20" rx="4" fill="#ecfdf5" stroke="#0f766e"/>
+  <text class="tagtx" x="498" y="204" fill="#0f766e">3V3</text>
+
+  <rect x="488" y="222" width="36" height="20" rx="4" fill="#f1f5f9" stroke="#4b5563"/>
+  <text class="tagtx" x="498" y="236" fill="#374151">GND</text>
+
+  <rect x="476" y="280" width="48" height="20" rx="4" fill="#fef2f2" stroke="#dc2626"/>
+  <text class="tagtx" x="484" y="294" fill="#b91c1c">BOOT0</text>
+
+  <rect x="476" y="312" width="48" height="20" rx="4" fill="#fef2f2" stroke="#dc2626"/>
+  <text class="tagtx" x="484" y="326" fill="#b91c1c">BOOT1</text>
+
+  <rect x="482" y="354" width="42" height="20" rx="4" fill="#f0f9ff" stroke="#0369a1"/>
+  <text class="tagtx" x="490" y="368" fill="#0369a1">NRST</text>
+
+  <rect x="476" y="396" width="48" height="20" rx="4" fill="#f0f9ff" stroke="#0369a1"/>
+  <text class="tagtx" x="484" y="410" fill="#0369a1">SWDIO</text>
+
+  <rect x="476" y="428" width="48" height="20" rx="4" fill="#f0f9ff" stroke="#0369a1"/>
+  <text class="tagtx" x="484" y="442" fill="#0369a1">SWCLK</text>
+
+  <rect x="448" y="500" width="76" height="20" rx="4" fill="#eff6ff" stroke="#1d4ed8"/>
+  <text class="tagtx" x="454" y="514" fill="#1d4ed8">USART1_TX</text>
+
+  <rect x="448" y="532" width="76" height="20" rx="4" fill="#eff6ff" stroke="#1d4ed8"/>
+  <text class="tagtx" x="454" y="546" fill="#1d4ed8">USART1_RX</text>
+
+  <!-- 右侧标签 -->
+  <rect x="1026" y="190" width="76" height="20" rx="4" fill="#eff6ff" stroke="#1d4ed8"/>
+  <text class="tagtx" x="1032" y="204" fill="#1d4ed8">USART2_TX</text>
+
+  <rect x="1026" y="222" width="76" height="20" rx="4" fill="#eff6ff" stroke="#1d4ed8"/>
+  <text class="tagtx" x="1032" y="236" fill="#1d4ed8">USART2_RX</text>
+
+  <rect x="1026" y="460" width="68" height="20" rx="4" fill="#faf5ff" stroke="#7c3aed"/>
+  <text class="tagtx" x="1032" y="474" fill="#7c3aed">I2C1_SCL</text>
+
+  <rect x="1026" y="492" width="68" height="20" rx="4" fill="#faf5ff" stroke="#7c3aed"/>
+  <text class="tagtx" x="1032" y="506" fill="#7c3aed">I2C1_SDA</text>
+
+  <rect x="1026" y="540" width="56" height="20" rx="4" fill="none" stroke="#6b7280" stroke-dasharray="3 2"/>
+  <text class="tagtx" x="1032" y="554" fill="#6b7280">LED?</text>
+
+  <!-- ================= 底部：核查汇总 ================= -->
+  <rect class="card" x="30" y="858" width="1540" height="400" rx="5"/>
+
+  <!-- A. 电源轨 -->
+  <text class="ttl2" x="48" y="892">A. 电源轨核查</text>
+  <line x1="48" y1="900" x2="540" y2="900" stroke="#cbd5e1"/>
+
+  <text class="mono" x="48" y="922">5V_IN　5V</text>
+  <text class="small" x="48" y="940">J1 VBUS 5V；J2 5V 座（存在性待确认）</text>
+
+  <text class="mono" x="48" y="966">3V3　3.3V</text>
+  <text class="small" x="48" y="984">MCU VDD/VDDA、I2C 传感器；CH340 待测</text>
+
+  <text class="mono" x="48" y="1010">GND　0V</text>
+  <text class="small" x="48" y="1028">全板共地，SWD / UART / I2C 共用</text>
+
+  <text class="mono" x="48" y="1054">VDDA　3.3V</text>
+  <text class="small" x="48" y="1072">推断与 VDD 同源，经磁珠 / LC 滤波（待测）</text>
+
+  <text class="mono" x="48" y="1120">结论</text>
+  <text class="small" x="48" y="1138">全板单一 3.3V 逻辑域，未发现 5V 逻辑器件</text>
+  <text class="small" x="48" y="1158">未发现跨电压域直连的电平冲突</text>
+
+  <!-- B. 接口电平 -->
+  <text class="ttl2" x="580" y="892">B. 接口电平核查</text>
+  <line x1="580" y1="900" x2="1020" y2="900" stroke="#cbd5e1"/>
+
+  <text class="mono" x="580" y="922">USART2　PA2 / PA3 ↔ CH340</text>
+  <text class="small" x="580" y="940">3.3V TTL · 实测通信正常</text>
+
+  <text class="mono" x="580" y="966">USART1　PA9 / PA10 ↔ 外部 TTL</text>
+  <text class="small" x="580" y="984">3.3V TTL · 实测 ISP 烧录成功</text>
+
+  <text class="mono" x="580" y="1010">I2C1　PB6 / PB7 ↔ 4 个传感器</text>
+  <text class="small" x="580" y="1028">3.3V · 上拉阻值待测 · 地址无冲突</text>
+
+  <text class="mono" x="580" y="1054">SWD　PA13 / PA14 ↔ GDCV</text>
+  <text class="small" x="580" y="1072">3.3V · V 脚禁止接调试器 3.3V</text>
+
+  <text class="mono" x="580" y="1098">BOOT　BOOT0 / BOOT1(PB2)</text>
+  <text class="small" x="580" y="1116">板上拉 · 运行 Flash 需 BOOT0 接地</text>
+
+  <text class="mono" x="580" y="1142">HSE　PH0 / PH1 ↔ Y1</text>
+  <text class="small" x="580" y="1160">晶振 8MHz 推断，负载电容待测</text>
+
+  <!-- C. 风险 -->
+  <text class="ttl2" x="1060" y="892">C. 风险点 &amp; 待实测</text>
+  <line x1="1060" y1="900" x2="1552" y2="900" stroke="#cbd5e1"/>
+
+  <text x="1060" y="924" font-size="11.5" fill="#b91c1c">① SWD 的 V ↔ 调试器 3.3V 倒灌（已烧 1 只）</text>
+  <text x="1060" y="950" font-size="11.5" fill="#b91c1c">② 5V 座 + Micro-USB 同时供电 → 回流</text>
+  <text x="1060" y="976" font-size="11.5" fill="#b91c1c">③ 外部 TTL 的 TX 与 MCU 的 TX 对顶</text>
+  <text x="1060" y="1002" font-size="11.5" fill="#b91c1c">④ BOOT0 长线虚接 → 进不了 bootloader</text>
+  <text x="1060" y="1028" font-size="11.5" fill="#b91c1c">⑤ 5V 误接 3.3V 网络 → 击穿 MCU / 传感器</text>
+
+  <text x="1060" y="1064" font-size="12" font-weight="700" fill="#b45309">待实测补全</text>
+  <text class="small" x="1060" y="1086">· LDO 型号 / 输出电流 · CH340 型号与供电电压</text>
+  <text class="small" x="1060" y="1108">· HSE 晶振频率与负载电容 · LED 引脚</text>
+  <text class="small" x="1060" y="1130">· 复位 / 用户按键 · I2C 上拉阻值 · 传感器 INT</text>
+  <text class="small" x="1060" y="1152">· 传感器套件符合 X-NUCLEO-IKS01A1 组合特征</text>
+
+  <line x1="48" y1="1190" x2="1552" y2="1190" stroke="#cbd5e1"/>
+  <text x="48" y="1212" font-size="10.5" fill="#64748b">免责声明：本图依据 SWD 读寄存器、串口回环、I2C 扫描与 WHO_AM_I 读取等实测行为反推重建，非原厂原理图；阻容值、器件型号、晶振参数未经核实。</text>
+  <text x="48" y="1234" font-size="10.5" fill="#64748b">改板、量产或接入外部设备前，必须以原厂资料与硬件工程师评审结论为准。图中「待测 / 推断 / 待确认」项不得作为电气依据。</text>
+
+</svg>
+</div>
+</body>
+</html>

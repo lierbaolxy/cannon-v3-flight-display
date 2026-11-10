@@ -23,6 +23,9 @@ LSM6DS3 六轴数据实时驱动 1.44" ST7735 屏上的 3D 线框飞机，同屏
 | 其他传感器 | LSM303AGR 加速度 0x19 / 磁力 0x1E、LPS25H 气压 0x5D、HTS221 温湿度 0x5F |
 | USB-TTL | 3.3V 电平，115200 8N1 |
 
+板级资料：[juma_cannon_v3_schematic.html](juma_cannon_v3_schematic.html)（功能级原理图，实测重建）、
+[juma_cannon_v3_pinout.csv](juma_cannon_v3_pinout.csv)（引脚网络表，含电平与实测状态）。
+
 ## 2. 接线
 
 ### 屏幕（SPI2）
@@ -130,6 +133,8 @@ t=1180 pitch=6 roll=0 yaw=-7 clock=0
 ├── DEBUG_NOTES.md          # 从 0 到 1 的调试记录（问题 / 原因 / 解决）
 ├── .gitignore
 ├── aircraft_lcd_preview.html  # 128×128 像素级效果预览（浏览器打开）
+├── juma_cannon_v3_schematic.html  # 板级功能原理图（实测重建，浏览器打开）
+├── juma_cannon_v3_pinout.csv      # 引脚网络表（电平 / 实测状态 / 备注）
 └── firmware
     ├── flight.c            # 主程序：姿态 / 3D 渲染 / 时钟 / 串口
     ├── sensor_lcd.c        # 五路传感器 + LCD 显示（LCD 初始化序列来源）
