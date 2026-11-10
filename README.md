@@ -136,6 +136,8 @@ t=1180 pitch=6 roll=0 yaw=-7 clock=0
 ├── aircraft_lcd_preview.html  # 128×128 像素级效果预览（浏览器打开）
 ├── juma_cannon_v3_schematic.html  # 板级功能原理图（实测重建，浏览器打开）
 ├── juma_cannon_v3_pinout.csv      # 引脚网络表（电平 / 实测状态 / 备注）
+├── docs
+│   └── resume_template.md         # 嵌入式简历模板（含本项目示例条目）
 └── firmware
     ├── flight.c            # 主程序：姿态 / 3D 渲染 / 时钟 / 串口
     ├── sensor_lcd.c        # 五路传感器 + LCD 显示（LCD 初始化序列来源）
