@@ -1,0 +1,21 @@
+# 编译产物
+*.elf
+*.bin
+*.hex
+*.map
+
+# 反汇编 / 备份
+disasm_full.txt
+backup_original.bin
+backup_restore.bin
+
+# 本地调试脚本与临时文件
+firmware/*.py
+tk*.xml
+.tmp*.png
+.screenshots/
+dl/
+
+# 系统文件
+Thumbs.db
+desktop.ini

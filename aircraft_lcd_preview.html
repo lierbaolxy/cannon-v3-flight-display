@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>ST7735 128x128 预览 v2 — 抗锯齿线框 3D 飞机</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; background: #0a0a0c;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    font-family: -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+    color: #7a8290; user-select: none;
+  }
+  .wrap {
+    padding: 18px; background: #16181d; border-radius: 14px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.7), inset 0 0 0 1px #262a32;
+  }
+  canvas {
+    width: 512px; height: 512px; display: block;
+    image-rendering: pixelated; image-rendering: crisp-edges;
+    background: #000; border-radius: 2px;
+    box-shadow: 0 0 40px rgba(0, 200, 220, .12);
+  }
+  .bar { margin-top: 14px; display: flex; gap: 10px; align-items: center; justify-content: center; }
+  button {
+    background: #22262e; color: #9aa4b2; border: 1px solid #333944;
+    padding: 7px 16px; border-radius: 7px; cursor: pointer;
+    font-size: 13px; font-family: inherit; transition: .15s;
+  }
+  button:hover { background: #2c313b; color: #cfd6e0; }
+  button.on { background: #0d6b78; border-color: #1596a8; color: #b8f4ff; }
+  .hint { margin-top: 10px; font-size: 12px; color: #555c68; text-align: center; line-height: 1.7; }
+  .tag { color: #1596a8; }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <canvas id="lcd" width="128" height="128"></canvas>
+  <div class="bar">
+    <button id="btnAuto" class="on">自动演示</button>
+    <button id="btnAA" class="on">抗锯齿</button>
+    <button id="btnReset">复位</button>
+  </div>
+  <div class="hint">
+    拖动屏幕模拟倾斜 · 静止 <span class="tag">5 秒</span> 切时钟 · 可切换抗锯齿对比效果
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  const cv = document.getElementById('lcd');
+  const ctx = cv.getContext('2d', { willReadFrequently: true });
+  ctx.imageSmoothingEnabled = false;
+
+  /* ---------------- 帧缓冲（对应 STM32 的 32KB RAM 缓冲） ---------------- */
+  const img = ctx.createImageData(128, 128);
+  const buf = img.data;
+
+  let useAA = true;
+
+  function clearBuf() {
+    for (let i = 0; i < buf.length; i += 4) {
+      buf[i] = 0; buf[i + 1] = 0; buf[i + 2] = 0; buf[i + 3] = 255;
+    }
+  }
+
+  function blend(x, y, r, g, b, a) {
+    x |= 0; y |= 0;
+    if (x < 0 || x > 127 || y < 0 || y > 127 || a <= 0) return;
+    if (a > 1) a = 1;
+    const i = (y * 128 + x) * 4;
+    buf[i]     += (r - buf[i])     * a;
+    buf[i + 1] += (g - buf[i + 1]) * a;
+    buf[i + 2] += (b - buf[i + 2]) * a;
+  }
+
+  /* Xiaolin Wu 抗锯齿线段 */
+  function wuLine(x0, y0, x1, y1, r, g, b) {
+    let steep = Math.abs(y1 - y0) > Math.abs(x1 - x0);
+    if (steep) { let t = x0; x0 = y0; y0 = t; t = x1; x1 = y1; y1 = t; }
+    if (x0 > x1) { let t = x0; x0 = x1; x1 = t; t = y0; y0 = y1; y1 = t; }
+
+    const dx = x1 - x0, dy = y1 - y0;
+    const grad = dx === 0 ? 1 : dy / dx;
+
+    let y = y0 + grad * (Math.round(x0) - x0);
+    const xs = Math.round(x0), xe = Math.round(x1);
+
+    for (let x = xs; x <= xe; x++) {
+      const yi = Math.floor(y);
+      const f = y - yi;
+      if (steep) {
+        blend(yi, x, r, g, b, 1 - f);
+        blend(yi + 1, x, r, g, b, f);
+      } else {
+        blend(x, yi, r, g, b, 1 - f);
+        blend(x, yi + 1, r, g, b, f);
+      }
+      y += grad;
+    }
+  }
+
+  /* 无抗锯齿硬线（用于对比） */
+  function hardLine(x0, y0, x1, y1, r, g, b) {
+    x0 = Math.round(x0); y0 = Math.round(y0);
+    x1 = Math.round(x1); y1 = Math.round(y1);
+    const dx = Math.abs(x1 - x0), dy = Math.abs(y1 - y0);
+    const sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1;
+    let err = dx - dy;
+    for (;;) {
+      blend(x0, y0, r, g, b, 1);
+      if (x0 === x1 && y0 === y1) break;
+      const e2 = 2 * err;
+      if (e2 > -dy) { err -= dy; x0 += sx; }
+      if (e2 < dx)  { err += dx; y0 += sy; }
+    }
+  }
+
+  function line(x0, y0, x1, y1, r, g, b) {
+    if (useAA) wuLine(x0, y0, x1, y1, r, g, b);
+    else hardLine(x0, y0, x1, y1, r, g, b);
+  }
+
+  /* ---------------- 5x7 点阵字库 ---------------- */
+  const FONT = {
+    '0': ['01110','10001','10011','10101','11001','10001','01110'],
+    '1': ['00100','01100','00100','00100','00100','00100','01110'],
+    '2': ['01110','10001','00001','00010','00100','01000','11111'],
+    '3': ['11111','00010','00100','00010','00001','10001','01110'],
+    '4': ['00010','00110','01010','10010','11111','00010','00010'],
+    '5': ['11111','10000','11110','00001','00001','10001','01110'],
+    '6': ['00110','01000','10000','11110','10001','10001','01110'],
+    '7': ['11111','00001','00010','00100','01000','01000','01000'],
+    '8': ['01110','10001','10001','01110','10001','10001','01110'],
+    '9': ['01110','10001','10001','01111','00001','00010','01100'],
+    'A': ['01110','10001','10001','11111','10001','10001','10001'],
+    'C': ['01110','10001','10000','10000','10000','10001','01110'],
+    'G': ['01110','10001','10000','10111','10001','10001','01111'],
+    'H': ['10001','10001','10001','11111','10001','10001','10001'],
+    'L': ['10000','10000','10000','10000','10000','10000','11111'],
+    'M': ['10001','11011','10101','10101','10001','10001','10001'],
+    'N': ['10001','11001','10101','10011','10001','10001','10001'],
+    'O': ['01110','10001','10001','10001','10001','10001','01110'],
+    'P': ['11110','10001','10001','11110','10000','10000','10000'],
+    'R': ['11110','10001','10001','11110','10100','10010','10001'],
+    'S': ['01111','10000','10000','01110','00001','00001','11110'],
+    'T': ['11111','00100','00100','00100','00100','00100','00100'],
+    'U': ['10001','10001','10001','10001','10001','10001','01110'],
+    'W': ['10001','10001','10001','10101','10101','11011','10001'],
+    ':': ['00000','00100','00100','00000','00100','00100','00000'],
+    '.': ['00000','00000','00000','00000','00000','01100','01100'],
+    '-': ['00000','00000','00000','11111','00000','00000','00000'],
+    ' ': ['00000','00000','00000','00000','00000','00000','00000']
+  };
+
+  function text(str, x, y, r, g, b) {
+    let cx = x;
+    for (const ch of str) {
+      const glyph = FONT[ch] || FONT[' '];
+      for (let row = 0; row < 7; row++) {
+        const bits = glyph[row];
+        for (let c = 0; c < 5; c++) {
+          if (bits[c] === '1') blend(cx + c, y + row, r, g, b, 1);
+        }
+      }
+      cx += 6;
+    }
+  }
+  function textWidth(s) { return s.length * 6 - 1; }
+
+  /* ---------------- 3D 飞机（后掠翼，机头朝 +Z） ---------------- */
+  /* 0机头 1机上 2机下 3机左 4机右 5机尾 6左翼根前 7右翼根前
+     8左翼尖 9右翼尖 10左翼根后 11右翼根后
+     12垂根前 13垂尖 14垂根后 15平左尖 16平右尖 17平左根 18平右根 */
+  const V = [
+    [  0,   0,  24],   // 0  机头
+    [  0,   3.6,  6],  // 1  上棱
+    [  0,  -3.6,  6],  // 2  下棱
+    [ -3.6, 0,   6],   // 3  左棱
+    [  3.6, 0,   6],   // 4  右棱
+    [  0,   0, -22],   // 5  尾锥
+    [ -3.6, 0,   4],   // 6  左翼根前
+    [  3.6, 0,   4],   // 7  右翼根前
+    [-27,   0, -12],   // 8  左翼尖
+    [ 27,   0, -12],   // 9  右翼尖
+    [ -3.6, 0,  -9],   // 10 左翼根后
+    [  3.6, 0,  -9],   // 11 右翼根后
+    [  0,   3.6, -11], // 12 垂尾根前
+    [  0,  15,  -20],  // 13 垂尾尖
+    [  0,   0.5,-22],  // 14 垂尾根后
+    [-11,   0,  -19],  // 15 平尾左尖
+    [ 11,   0,  -19],  // 16 平尾右尖
+    [ -3.6, 0,  -14],  // 17 平尾左根
+    [  3.6, 0,  -14]   // 18 平尾右根
+  ];
+
+  const E = [
+    /* 机身四条棱 */
+    [0,1],[0,2],[0,3],[0,4],
+    [1,5],[2,5],[3,5],[4,5],
+    /* 机身横截环 */
+    [1,3],[3,2],[2,4],[4,1],
+    /* 主翼 */
+    [6,8],[8,10],[10,6],
+    [7,9],[9,11],[11,7],
+    /* 垂尾 */
+    [12,13],[13,14],[14,12],
+    /* 平尾 */
+    [15,16],[15,17],[16,18],[17,18]
+  ];
+
+  const F = 58;
+  const CX = 64, CY = 63;
+
+  function rotXYZ(p, ax, ay, az) {
+    let x = p[0], y = p[1], z = p[2];
+    const ca = Math.cos(ax), sa = Math.sin(ax);
+    let y1 = y * ca - z * sa;
+    let z1 = y * sa + z * ca;
+    const cb = Math.cos(ay), sb = Math.sin(ay);
+    let x2 = x * cb + z1 * sb;
+    let z2 = -x * sb + z1 * cb;
+    const cc = Math.cos(az), sc = Math.sin(az);
+    let x3 = x2 * cc - y1 * sc;
+    let y3 = x2 * sc + y1 * cc;
+    return [x3, y3, z2];
+  }
+
+  function project(v) {
+    const s = F / (F + v[2]);
+    return [CX + v[0] * s, CY - v[1] * s];
+  }
+
+  /* ---------------- 状态 ---------------- */
+  const state = {
+    pitch: 0, roll: 0, yaw: 0,
+    auto: true,
+    lastMove: 0,
+    dragging: false,
+    dragX: 0, dragY: 0, basePitch: 0, baseRoll: 0,
+    idleSwitched: false
+  };
+  const IDLE_MS = 5000;
+
+  /* ---------------- 飞机画面 ---------------- */
+  function drawPlane() {
+    clearBuf();
+
+    // 地平参考线
+    const hy = CY + Math.tan(state.pitch) * 18;
+    for (let x = 2; x < 34; x++) blend(x, hy, 20, 60, 66, 0.7);
+    for (let x = 94; x < 126; x++) blend(x, hy, 20, 60, 66, 0.7);
+
+    const tp = V.map(v => project(rotXYZ(v, state.pitch, state.yaw, state.roll)));
+
+    // 按平均 Z 排序：远的先画、颜色暗
+    const arr = E.map(e => ({ a: e[0], b: e[1], z: (V[e[0]][2] + V[e[1]][2]) * 0.5 }))
+                 .sort((p, q) => q.z - p.z);
+
+    for (const it of arr) {
+      const p = tp[it.a], q = tp[it.b];
+      const t = Math.max(0, Math.min(1, (it.z + 22) / 46));
+      const r = Math.round(30 + (1 - t) * 120);
+      const g = Math.round(140 + (1 - t) * 115);
+      const b = Math.round(155 + (1 - t) * 100);
+      line(p[0], p[1], q[0], q[1], r, g, b);
+    }
+
+    // 中心准星
+    blend(62, 62, 40, 120, 132, 1); blend(63, 62, 40, 120, 132, 1);
+    blend(64, 62, 40, 120, 132, 1); blend(65, 62, 40, 120, 132, 1);
+
+    // 数据
+    const alt = Math.round(123 + Math.sin(simT * 0.4) * 3);
+    const acc = Math.round(1012 + Math.sin(simT * 1.7) * 8);
+    text('ALT', 3, 3, 58, 138, 148);
+    text(String(alt) + 'M', 125 - textWidth(String(alt) + 'M'), 3, 127, 232, 245);
+    text('ACC', 3, 118, 58, 138, 148);
+    text(String(acc) + 'MG', 125 - textWidth(String(acc) + 'MG'), 118, 127, 232, 245);
+  }
+
+  /* ---------------- 时钟画面 ---------------- */
+  function drawClock() {
+    clearBuf();
+
+    const cx = 64, cy = 61, R = 50;
+    const N = 180;
+
+    // 外圆
+    let px = cx + R, py = cy;
+    for (let i = 1; i <= N; i++) {
+      const a = (i / N) * Math.PI * 2;
+      const x = cx + Math.cos(a) * R;
+      const y = cy + Math.sin(a) * R;
+      line(px, py, x, y, 31, 127, 140);
+      px = x; py = y;
+    }
+    // 内圈
+    px = cx + (R - 3); py = cy;
+    for (let i = 1; i <= N; i++) {
+      const a = (i / N) * Math.PI * 2;
+      const x = cx + Math.cos(a) * (R - 3);
+      const y = cy + Math.sin(a) * (R - 3);
+      line(px, py, x, y, 18, 82, 91);
+      px = x; py = y;
+    }
+
+    // 刻度
+    for (let i = 0; i < 12; i++) {
+      const a = (i / 12) * Math.PI * 2 - Math.PI / 2;
+      const major = (i % 3 === 0);
+      const len = major ? 8 : 4;
+      const r0 = R - 4, r1 = R - 4 - len;
+      const cr = major ? 216 : 45, cg = major ? 246 : 139, cb2 = major ? 255 : 153;
+      line(cx + Math.cos(a) * r0, cy + Math.sin(a) * r0,
+           cx + Math.cos(a) * r1, cy + Math.sin(a) * r1, cr, cg, cb2);
+      if (major) {
+        const off = 0.045;
+        line(cx + Math.cos(a + off) * r0, cy + Math.sin(a + off) * r0,
+             cx + Math.cos(a + off) * r1, cy + Math.sin(a + off) * r1, cr, cg, cb2);
+      }
+    }
+
+    const d = new Date();
+    const ms = d.getMilliseconds() / 1000;
+    const sec = d.getSeconds() + ms;
+    const min = d.getMinutes() + sec / 60;
+    const hr = (d.getHours() % 12) + min / 60;
+
+    const aS = (sec / 60) * Math.PI * 2 - Math.PI / 2;
+    const aM = (min / 60) * Math.PI * 2 - Math.PI / 2;
+    const aH = (hr / 12) * Math.PI * 2 - Math.PI / 2;
+
+    // 时针（粗）
+    drawHand(cx, cy, aH, 24, 216, 246, 255);
+    // 分针
+    drawHand(cx, cy, aM, 36, 127, 232, 245);
+    // 秒针（细红）
+    drawHand(cx, cy, aS, 43, 255, 90, 78);
+
+    // 轴心
+    for (let yy = -1; yy <= 1; yy++)
+      for (let xx = -1; xx <= 1; xx++)
+        blend(cx + xx, cy + yy, 216, 246, 255, 1);
+
+    // 数字
+    const str = String(d.getHours()).padStart(2, '0') + ':' +
+                String(d.getMinutes()).padStart(2, '0') + ':' +
+                String(d.getSeconds()).padStart(2, '0');
+    text(str, Math.round((128 - textWidth(str)) / 2), 118, 127, 232, 245);
+  }
+
+  function drawHand(cx, cy, ang, len, r, g, b) {
+    const ex = cx + Math.cos(ang) * len;
+    const ey = cy + Math.sin(ang) * len;
+    line(cx, cy, ex, ey, r, g, b);
+    // 粗针：再加一条平行线
+    if (len >= 24) {
+      const nx = -Math.sin(ang) * 1.2, ny = Math.cos(ang) * 1.2;
+      line(cx + nx, cy + ny, ex + nx, ey + ny, r, g, b);
+    }
+  }
+
+  /* ---------------- 交互 ---------------- */
+  let simT = 0;
+
+  function markMove() {
+    state.lastMove = performance.now();
+    if (state.idleSwitched) {
+      state.idleSwitched = false;
+      state.auto = false;
+      document.getElementById('btnAuto').classList.remove('on');
+    }
+  }
+
+  cv.addEventListener('pointerdown', e => {
+    state.dragging = true;
+    state.dragX = e.clientX; state.dragY = e.clientY;
+    state.basePitch = state.pitch; state.baseRoll = state.roll;
+    state.auto = false;
+    document.getElementById('btnAuto').classList.remove('on');
+    cv.setPointerCapture(e.pointerId);
+    markMove();
+  });
+
+  cv.addEventListener('pointermove', e => {
+    if (!state.dragging) return;
+    state.roll  = state.baseRoll  + (e.clientX - state.dragX) * 0.012;
+    state.pitch = state.basePitch + (e.clientY - state.dragY) * 0.012;
+    state.pitch = Math.max(-1.2, Math.min(1.2, state.pitch));
+    state.roll  = Math.max(-1.2, Math.min(1.2, state.roll));
+    markMove();
+  });
+
+  cv.addEventListener('pointerup', () => { state.dragging = false; markMove(); });
+
+  document.getElementById('btnAuto').addEventListener('click', function () {
+    state.auto = !state.auto;
+    this.classList.toggle('on', state.auto);
+    state.idleSwitched = false;
+    markMove();
+  });
+
+  document.getElementById('btnAA').addEventListener('click', function () {
+    useAA = !useAA;
+    this.classList.toggle('on', useAA);
+  });
+
+  document.getElementById('btnReset').addEventListener('click', () => {
+    state.pitch = 0; state.roll = 0; state.yaw = 0;
+    state.auto = true; state.idleSwitched = false;
+    markMove();
+    document.getElementById('btnAuto').classList.add('on');
+  });
+
+  /* ---------------- 主循环 ---------------- */
+  let last = performance.now();
+
+  function frame(now) {
+    const dt = Math.min((now - last) / 1000, 0.1);
+    last = now;
+    simT += dt;
+
+    if (state.auto) {
+      state.pitch = Math.sin(simT * 0.55) * 0.40;
+      state.roll  = Math.sin(simT * 0.37 + 1.1) * 0.52;
+      state.yaw   = Math.sin(simT * 0.23) * 0.55;
+      state.lastMove = now;
+    }
+
+    if (now - state.lastMove > IDLE_MS) {
+      state.idleSwitched = true;
+      drawClock();
+    } else {
+      drawPlane();
+    }
+
+    ctx.putImageData(img, 0, 0);
+    requestAnimationFrame(frame);
+  }
+
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
