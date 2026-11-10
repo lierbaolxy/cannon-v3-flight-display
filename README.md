@@ -130,6 +130,7 @@ t=1180 pitch=6 roll=0 yaw=-7 clock=0
 ```
 .
 ├── README.md
+├── CAUTIONS.md             # 注意事项：电气安全 / 烧录 / 串口 / 改代码的坑
 ├── DEBUG_NOTES.md          # 从 0 到 1 的调试记录（问题 / 原因 / 解决）
 ├── .gitignore
 ├── aircraft_lcd_preview.html  # 128×128 像素级效果预览（浏览器打开）
@@ -153,4 +154,5 @@ t=1180 pitch=6 roll=0 yaw=-7 clock=0
 - 板载 BlueNRG 蓝牙协议层无法打通，未使用
 - 未实现 SD 卡 / 视频播放（需额外硬件确认）
 
-调试过程与踩坑记录见 [DEBUG_NOTES.md](DEBUG_NOTES.md)。
+调试过程与踩坑记录见 [DEBUG_NOTES.md](DEBUG_NOTES.md)，
+动手改硬件或改代码前请先看 [CAUTIONS.md](CAUTIONS.md)。
